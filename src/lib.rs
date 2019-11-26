@@ -105,7 +105,15 @@ impl<'a> Packet<'a> {
     /// съобщение (payload), checksum. Вижте по-горе за детайлно обяснение.
     ///
     pub fn serialize(&self) -> Vec<u8> {
-        unimplemented!()
+        let mut bytes: Vec<u8> = vec! [
+            self.version,
+            self.size
+        ];
+
+        bytes.extend_from_slice(self.payload);
+        bytes.extend(self.checksum.iter().cloned());
+
+        bytes
     }
 
     // Note: if size is less, it'll be the checksum not being valid

@@ -1,3 +1,4 @@
+use std::convert::TryInto;
 use std::fmt;
 
 /// Грешките, които ще очакваме да върнете. По-долу ще е описано кои от тези грешки очакваме да се
@@ -35,11 +36,14 @@ impl std::error::Error for PacketError {}
 /// Може да е нужно да добавите lifetimes на дефиницията тук и/или на методите в impl блока.
 ///
 #[derive(PartialEq, Debug)]
-pub struct Packet {
-    // ...
+pub struct Packet<'a> {
+    version: u8,
+    size: u8,
+    payload: &'a [u8],
+    checksum: [u8; 4],
 }
 
-impl Packet {
+impl<'a> Packet<'a> {
     /// Конструира пакет от дадения slice от байтове. Приема параметър `size`, който е размера на
     /// payload-а на новия пакет. Връща двойка от пакет + оставащите байтове. Тоест, ако имате низа
     /// "abcd" и викнете метода върху байтовата му репрезентация с параметър `size` равен на 3, ще
@@ -54,8 +58,37 @@ impl Packet {
     /// Ако параметъра `size` е 0, очакваме тази функция да panic-не (приемаме, че това извикване
     /// просто е невалидно, програмистка грешка).
     ///
-    pub fn from_source(source: &[u8], size: u8) -> (Self, &[u8]) {
-        unimplemented!()
+    pub fn from_source(source: &'a [u8], size: u8) -> (Self, &[u8]) {
+        if size == 0 {
+            panic!();
+        }
+
+        let payload: &'a [u8];
+        let remainder: &'a [u8];
+
+        let source_length = source.len();
+        let mut parsed_size = size as usize; // TODO: maybe rename
+
+        if source_length > parsed_size {
+            payload = &source[0..parsed_size];
+            remainder = &source[parsed_size..source_length];
+        } else {
+            payload = source;
+            remainder = &[];
+            parsed_size = source_length;
+        }
+
+        let checksum: u32 = payload.iter().map(|&byte| byte as u32).sum();
+
+        (
+            Packet {
+                version: 1,
+                size: parsed_size.try_into().unwrap(), // TODO: maybe introduce error handling
+                payload,
+                checksum: checksum.to_be_bytes(),
+            },
+            remainder,
+        )
     }
 
     /// Връща само slice-а който пакета опакова. Тоест, ако сме конструирали пакета със
@@ -65,7 +98,7 @@ impl Packet {
     /// и четене.
     ///
     pub fn payload(&self) -> &[u8] {
-        unimplemented!()
+        self.payload
     }
 
     /// Сериализира пакета, тоест превръща го в байтове, готови за трансфер. Версия, дължина,
@@ -106,12 +139,13 @@ impl Packet {
 ///
 /// Може да е нужно да добавите lifetimes на дефиницията тук и/или на методите в impl блока.
 ///
-pub struct PacketSerializer {
+pub struct PacketSerializer<'a> {
     // ...
+    temp: &'a [u8],
 }
 
-impl Iterator for PacketSerializer {
-    type Item = Packet;
+impl<'a> Iterator for PacketSerializer<'a> {
+    type Item = Packet<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         unimplemented!()

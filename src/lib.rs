@@ -28,7 +28,7 @@ impl fmt::Display for PacketError {
 /// Тази имплементация би трябвало да сработи директно благодарение на горните. При желание, можете
 /// да си имплементирате ръчно някои от методите, само внимавайте.
 ///
-impl std::error::Error for PacketError {}
+impl std::error::Error for PacketError {} // TODO: google rust error conventions
 
 /// Един пакет, съдържащ част от съобщението. Изберете сами какви полета да използвате за
 /// съхранение.
@@ -71,21 +71,21 @@ impl<'a> Packet<'a> {
 
         if source_length > parsed_size {
             payload = &source[0..parsed_size];
-            remainder = &source[parsed_size..source_length];
+            remainder = &source[parsed_size..];
         } else {
             payload = source;
             remainder = &[];
             parsed_size = source_length;
         }
 
-        let checksum: u32 = payload.iter().map(|&byte| byte as u32).sum();
+        let checksum: [u8; 4] = Self::find_checksum(payload);
 
         (
             Packet {
                 version: 1,
                 size: parsed_size.try_into().unwrap(), // TODO: maybe introduce error handling
                 payload,
-                checksum: checksum.to_be_bytes(),
+                checksum,
             },
             remainder,
         )
@@ -105,10 +105,7 @@ impl<'a> Packet<'a> {
     /// съобщение (payload), checksum. Вижте по-горе за детайлно обяснение.
     ///
     pub fn serialize(&self) -> Vec<u8> {
-        let mut bytes: Vec<u8> = vec! [
-            self.version,
-            self.size
-        ];
+        let mut bytes: Vec<u8> = vec![self.version, self.size];
 
         bytes.extend_from_slice(self.payload);
         bytes.extend(self.checksum.iter().cloned());
@@ -137,7 +134,46 @@ impl<'a> Packet<'a> {
     /// особено като са написани за един уикенд. Авторите обещават по-добър протокол за версия 2.
     ///
     pub fn deserialize(bytes: &[u8]) -> Result<(Packet, &[u8]), PacketError> {
-        unimplemented!()
+        let byte_count = bytes.len();
+        if byte_count < 6 {
+            return Err(PacketError::InvalidPacket);
+        }
+
+        let version = match bytes[0] {
+            1 => 1,
+            _ => return Err(PacketError::UnknownProtocolVersion),
+        };
+
+        let size = bytes[1] as usize;
+
+        if size > (byte_count - 6_usize) {
+            return Err(PacketError::InvalidPacket);
+        }
+
+        let payload = &bytes[2..(size + 2)];
+        let checksum_to_check = &bytes[(size + 2)..(size + 6)];
+        let checksum = Self::find_checksum(payload);
+
+        if checksum != checksum_to_check {
+            return Err(PacketError::InvalidChecksum);
+        }
+
+        let remainder = &bytes[(size + 6)..];
+
+        Ok((
+            Packet {
+                version,
+                size: size.try_into().unwrap(),
+                payload,
+                checksum,
+            },
+            remainder,
+        ))
+    }
+
+    fn find_checksum(payload: &[u8]) -> [u8; 4] {
+        let sum: u32 = payload.iter().map(|&byte| byte as u32).sum();
+        sum.to_be_bytes()
     }
 }
 

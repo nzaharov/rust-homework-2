@@ -183,16 +183,23 @@ impl<'a> Packet<'a> {
 ///
 /// Може да е нужно да добавите lifetimes на дефиницията тук и/или на методите в impl блока.
 ///
+#[derive(Debug)]
 pub struct PacketSerializer<'a> {
-    // ...
-    temp: &'a [u8],
+    packet_size: u8,
+    remaining_bytes: &'a [u8],
 }
 
 impl<'a> Iterator for PacketSerializer<'a> {
     type Item = Packet<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        unimplemented!()
+        if self.remaining_bytes.len() == 0 {
+            return None;
+        }
+        let (packet, remainder) = Packet::from_source(self.remaining_bytes, self.packet_size);
+        self.remaining_bytes = remainder;
+
+        Some(packet)
     }
 }
 
@@ -212,7 +219,12 @@ impl Packetable for String {
     /// итератор върху въпросните пакети. Низа трябва да се използва под формата на байтове.
     ///
     fn to_packets(&self, packet_size: u8) -> PacketSerializer {
-        unimplemented!()
+        let message_bytes = self.as_bytes();
+
+        PacketSerializer {
+            packet_size,
+            remaining_bytes: message_bytes,
+        }
     }
 
     /// Имайки итератор по пакети, лесно можем да сериализираме всеки индивидуален пакет в поредица

@@ -16,7 +16,6 @@ fn main() {
     println!("{:?}", deserialized_broken);
 
     let string = String::from("asdf");
-    let mut serializer = string.to_packets(3);
-    println!("{:?}", serializer.next());
-    println!("{:?}", serializer.next());
+    let serializer: Vec<Packet> = string.to_packets(4).collect();
+    println!("{:?}", serializer);
 }

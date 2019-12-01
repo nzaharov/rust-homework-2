@@ -97,7 +97,7 @@ impl<'a> Packet<'a> {
     /// Защо това просто не е публично property? За да не позволяваме мутация, а само конструиране
     /// и четене.
     ///
-    pub fn payload(&self) -> &[u8] {
+    pub fn payload(&self) -> &[u8] { // TODO contemplate here
         self.payload
     }
 
@@ -219,11 +219,11 @@ impl Packetable for String {
     /// итератор върху въпросните пакети. Низа трябва да се използва под формата на байтове.
     ///
     fn to_packets(&self, packet_size: u8) -> PacketSerializer {
-        let message_bytes = self.as_bytes();
+        let string_as_bytes = self.as_bytes();
 
         PacketSerializer {
             packet_size,
-            remaining_bytes: message_bytes,
+            remaining_bytes: string_as_bytes,
         }
     }
 
@@ -231,7 +231,14 @@ impl Packetable for String {
     /// от байтове със `.serialize()` и да го натъпчем във вектора.
     ///
     fn to_packet_data(&self, packet_size: u8) -> Vec<u8> {
-        unimplemented!()
+        let mut serialized_data = Vec::<u8>::new();
+        let packet_serializer = self.to_packets(packet_size);
+
+        for packet in packet_serializer {
+            serialized_data.extend(packet.serialize());
+        }
+
+        serialized_data
     }
 
     /// Обратното на горния метод е тази асоциирана функция -- имайки slice от байтове които са
@@ -245,6 +252,17 @@ impl Packetable for String {
     /// Тогава връщаме `PacketError::CorruptedMessage`.
     ///
     fn from_packet_data(packet_data: &[u8]) -> Result<Self, PacketError> {
-        unimplemented!()
+        let mut remaining_data: &[u8] = packet_data;
+        let mut content: String = String::new();
+
+        while remaining_data.len() > 0 {
+            let (packet, remainder) = Packet::deserialize(remaining_data)?;
+            let parsed_payload = std::str::from_utf8(packet.payload()).unwrap(); // TODO handle error
+
+            content.push_str(parsed_payload);
+            remaining_data = remainder;
+        }
+
+        Ok(content)
     }
 }

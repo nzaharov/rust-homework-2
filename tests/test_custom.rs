@@ -47,11 +47,11 @@ fn tamper_data(index: usize, expected_error: PacketError) {
     packet_data[index] = 100;
 
     let result = match String::from_packet_data(&packet_data) {
-        Ok(x) => PacketError::CorruptedMessage,
-        Err(error) => error,
+        Ok(_) => None,
+        Err(error) => Some(error),
     };
 
-    assert_eq!(result, expected_error);
+    assert_eq!(result.unwrap(), expected_error);
 }
 
 #[test]

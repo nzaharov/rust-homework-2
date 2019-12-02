@@ -21,14 +21,25 @@ pub enum PacketError {
 ///
 impl fmt::Display for PacketError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        unimplemented!()
+        match self {
+            Self::InvalidPacket => write!(f, "Invalid packet"),
+            Self::InvalidChecksum => write!(f, "Checksum invalid"),
+            Self::UnknownProtocolVersion => write!(f, "Unknown protocol version"),
+            Self::CorruptedMessage => write!(f, "Data is corrupted"),
+        }
     }
 }
 
 /// Тази имплементация би трябвало да сработи директно благодарение на горните. При желание, можете
 /// да си имплементирате ръчно някои от методите, само внимавайте.
 ///
-impl std::error::Error for PacketError {} // TODO: google rust error conventions
+impl std::error::Error for PacketError {}
+
+impl From<std::str::Utf8Error> for PacketError {
+    fn from(_err: std::str::Utf8Error) -> Self {
+        PacketError::CorruptedMessage
+    }
+}
 
 /// Един пакет, съдържащ част от съобщението. Изберете сами какви полета да използвате за
 /// съхранение.
@@ -67,7 +78,7 @@ impl<'a> Packet<'a> {
         let remainder: &'a [u8];
 
         let source_length = source.len();
-        let mut parsed_size = size as usize; // TODO: maybe rename
+        let mut parsed_size = size as usize;
 
         if source_length > parsed_size {
             payload = &source[0..parsed_size];
@@ -83,7 +94,7 @@ impl<'a> Packet<'a> {
         (
             Packet {
                 version: 1,
-                size: parsed_size.try_into().unwrap(), // TODO: maybe introduce error handling
+                size: parsed_size.try_into().unwrap(),
                 payload,
                 checksum,
             },
@@ -97,7 +108,7 @@ impl<'a> Packet<'a> {
     /// Защо това просто не е публично property? За да не позволяваме мутация, а само конструиране
     /// и четене.
     ///
-    pub fn payload(&self) -> &[u8] { // TODO contemplate here
+    pub fn payload(&self) -> &[u8] {
         self.payload
     }
 
@@ -257,8 +268,8 @@ impl Packetable for String {
 
         while remaining_data.len() > 0 {
             let (packet, remainder) = Packet::deserialize(remaining_data)?;
-            let parsed_payload = std::str::from_utf8(packet.payload()).unwrap(); // TODO handle error
-
+            let parsed_payload = std::str::from_utf8(packet.payload())?;
+            
             content.push_str(parsed_payload);
             remaining_data = remainder;
         }

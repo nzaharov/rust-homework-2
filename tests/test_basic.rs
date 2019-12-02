@@ -53,3 +53,15 @@ fn test_round_trip() {
 
     assert_eq!(initial_data, restored_data);
 }
+
+// #[test]
+// fn test_corrupted_data() {
+//     let packet = [1, 1, 0, 0, 0, 0, 0];
+//     let err = String::from_packet_data(&packet).unwrap();
+
+//     println!("{:?}", err);
+//     assert_eq!(
+//         format!("{}", err),
+//         format!("{}", PacketError::CorruptedMessage)
+//     );
+// }

@@ -22,12 +22,6 @@ impl fmt::Display for PacketError {
 
 impl std::error::Error for PacketError {}
 
-impl From<std::str::Utf8Error> for PacketError {
-    fn from(_err: std::str::Utf8Error) -> Self {
-        PacketError::CorruptedMessage
-    }
-}
-
 #[derive(PartialEq, Debug)]
 pub struct Packet<'a> {
     version: u8,
@@ -104,7 +98,6 @@ impl<'a> Packet<'a> {
         let payload = &bytes[2..(size + 2)];
         let checksum_to_check = &bytes[(size + 2)..(size + reserved_bytes_count)];
         let checksum = Self::find_checksum(payload);
-        
         if checksum != checksum_to_check {
             return Err(PacketError::InvalidChecksum);
         }
@@ -185,7 +178,8 @@ impl Packetable for String {
             remaining_data = remainder;
         }
 
-        let decoded_message = std::str::from_utf8(&encoded_message)?;
+        let decoded_message =
+            std::str::from_utf8(&encoded_message).map_err(|_| PacketError::CorruptedMessage)?;
 
         Ok(String::from(decoded_message))
     }

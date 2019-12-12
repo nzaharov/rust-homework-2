@@ -178,9 +178,6 @@ impl Packetable for String {
             remaining_data = remainder;
         }
 
-        let decoded_message =
-            std::str::from_utf8(&encoded_message).map_err(|_| PacketError::CorruptedMessage)?;
-
-        Ok(String::from(decoded_message))
+        String::from_utf8(encoded_message).map_err(|_| PacketError::CorruptedMessage)
     }
 }

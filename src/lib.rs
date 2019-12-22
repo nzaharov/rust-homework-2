@@ -36,8 +36,8 @@ impl<'a> Packet<'a> {
             panic!();
         }
 
-        let payload: &'a [u8];
-        let remainder: &'a [u8];
+        let payload: &[u8];
+        let remainder: &[u8];
 
         let source_length = source.len();
         let mut parsed_size = size as usize;
